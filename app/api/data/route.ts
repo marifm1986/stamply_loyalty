@@ -1,7 +1,64 @@
-import {env} from 'cloudflare:workers';
-import {getChatGPTUser} from '../../chatgpt-auth';
-export async function GET(){const u=await getChatGPTUser();if(!u)return Response.json({error:'Sign in to access your business.'},{status:401}); const db=env.DB;if(!db)return Response.json({error:"Database unavailable"},{status:503});const shop=await db.prepare('SELECT * FROM shops WHERE owner=?').bind(u.userId).first();const members=await db.prepare('SELECT * FROM members WHERE owner=? ORDER BY last DESC').bind(u.userId).all();const events=await db.prepare('SELECT * FROM events WHERE owner=? ORDER BY at DESC LIMIT 500').bind(u.userId).all();return Response.json({shop,members:members.results,events:events.results});}
-export async function POST(req:Request){const u=await getChatGPTUser();if(!u)return Response.json({error:'Sign in required'},{status:401});const db=env.DB;if(!db)return Response.json({error:"Database unavailable"},{status:503});try{const b:any=await req.json();const owner=u.userId;const at=new Date().toISOString();if(b.action==='settings'){if(!b.name?.trim()||!b.reward?.trim()||!Number.isInteger(b.goal)||b.goal<2||b.goal>30)throw Error('Enter a business, reward and goal of 2–30.');const existing=await db.prepare('SELECT goal FROM shops WHERE owner=?').bind(owner).first();if(existing&&existing.goal!==b.goal){const count=await db.prepare('SELECT COUNT(*) AS n FROM members WHERE owner=?').bind(owner).first();if(Number(count?.n)>0)throw Error('The stamp goal is locked after enrollment to protect earned rewards.');}await db.prepare('INSERT INTO shops(owner,name,reward,goal) VALUES(?,?,?,?) ON CONFLICT(owner) DO UPDATE SET name=excluded.name,reward=excluded.reward,goal=excluded.goal').bind(owner,b.name.trim().slice(0,80),b.reward.trim().slice(0,120),b.goal).run();}
-else if(b.action==='enroll'){if(!b.name?.trim()||!b.phone?.trim())throw Error('Name and phone are required.');const shop=await db.prepare('SELECT owner FROM shops WHERE owner=?').bind(owner).first();if(!shop)throw Error('Create your program first.');const duplicate=await db.prepare('SELECT id FROM members WHERE owner=? AND phone=?').bind(owner,b.phone.trim()).first();if(duplicate)throw Error('This phone is already enrolled. Search for their existing card.');await db.prepare('INSERT INTO members(id,owner,name,phone,last) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),owner,b.name.trim().slice(0,80),b.phone.trim().slice(0,30),at).run();}
-else if(b.action==='stamp'||b.action==='redeem'){const shop=await db.prepare('SELECT goal FROM shops WHERE owner=?').bind(owner).first();if(!shop)throw Error('Create your program first.');const goal=Number(shop.goal);const result=await db.prepare(b.action==='stamp'?'UPDATE members SET stamps=stamps+1,visits=visits+1,last=? WHERE id=? AND owner=? AND stamps<?':'UPDATE members SET stamps=stamps-?,last=? WHERE id=? AND owner=? AND stamps>=?').bind(...(b.action==='stamp'?[at,b.id,owner,goal]:[goal,at,b.id,owner,goal])).run();if(!result.meta.changes)throw Error(b.action==='stamp'?'Card is full. Redeem the reward first.':'This card is not ready to redeem.');await db.prepare('INSERT INTO events(id,owner,member,kind,at) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),owner,b.id,b.action,at).run();}
-else throw Error('Unknown action');return GET();}catch(e){return Response.json({error:e instanceof Error?e.message:'Unable to save'},{status:400});}}
+﻿import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { createClient } from '@/lib/supabase/server';
+import { isSupabaseConfigured } from '@/lib/supabase/config';
+
+export const dynamic = 'force-dynamic';
+const text = (max: number) => z.string().trim().min(1).max(max);
+const mutation = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('settings'), name: text(80), reward: text(120), goal: z.number().int().min(2).max(30), requestId: z.string().uuid() }),
+  z.object({ action: z.literal('enroll'), name: text(80), phone: text(30), requestId: z.string().uuid() }),
+  z.object({ action: z.literal('stamp'), id: z.string().uuid(), requestId: z.string().uuid() }),
+  z.object({ action: z.literal('redeem'), id: z.string().uuid(), requestId: z.string().uuid() }),
+]);
+function json(body: unknown, status = 200) {
+  return NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } });
+}
+async function context() {
+  if (!isSupabaseConfigured()) return { response: json({ error: 'Supabase is not configured. See SETUP.md.' }, 503) };
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return { response: json({ error: 'Sign in to access your business.' }, 401) };
+  return { supabase, user: data.user };
+}
+async function workspace(supabase: Awaited<ReturnType<typeof createClient>>, owner: string) {
+  // Supabase caps each response at 1,000 rows by default. Page through the
+  // member list so an established business never silently loses customers.
+  async function allMembers() {
+    const rows: Record<string, unknown>[] = [];
+    for (let offset = 0; ; offset += 500) {
+      const page = await supabase.from('members').select('*').eq('owner', owner)
+        .order('last', { ascending: false }).order('id').range(offset, offset + 499);
+      if (page.error) return { data: null, error: page.error };
+      rows.push(...page.data);
+      if (page.data.length < 500) return { data: rows, error: null };
+    }
+  }
+  const [shop, members, events] = await Promise.all([
+    supabase.from('shops').select('*').eq('owner', owner).maybeSingle(),
+    allMembers(),
+    supabase.from('events').select('*').eq('owner', owner).order('at', { ascending: false }).limit(500),
+  ]);
+  if (shop.error || members.error || events.error) return json({ error: 'Could not load your workspace. Check the database setup and try again.' }, 503);
+  return json({ shop: shop.data, members: members.data, events: events.data });
+}
+export async function GET() {
+  const ctx = await context();
+  if (ctx.response) return ctx.response;
+  return workspace(ctx.supabase, ctx.user.id);
+}
+export async function POST(request: NextRequest) {
+  if (request.headers.get('origin') !== request.nextUrl.origin) return json({ error: 'Invalid request origin.' }, 403);
+  if (Number(request.headers.get('content-length') || 0) > 4096) return json({ error: 'Request too large.' }, 413);
+  const ctx = await context();
+  if (ctx.response) return ctx.response;
+  let raw: unknown;
+  try { const body = await request.text(); if (body.length > 4096) return json({ error: 'Request too large.' }, 413); raw = JSON.parse(body); }
+  catch { return json({ error: 'Invalid JSON.' }, 400); }
+  const parsed = mutation.safeParse(raw);
+  if (!parsed.success) return json({ error: 'Check the form values and try again.' }, 400);
+  const { requestId, ...payload } = parsed.data;
+  const { error } = await ctx.supabase.rpc('mutate_workspace', { payload, request_id: requestId });
+  if (error) return json({ error: error.code === 'P0001' ? error.message : 'Could not save your change. Please try again.' }, error.code === 'P0001' ? 400 : 503);
+  return workspace(ctx.supabase, ctx.user.id);
+}

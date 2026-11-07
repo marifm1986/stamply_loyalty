@@ -1,13 +1,31 @@
-# Stamply — private working pilot
+﻿# Stamply
 
-QR loyalty workspace based on the supplied video. Includes merchant program configuration, customer registration, real enrollment/card QR codes, camera scanning with BarcodeDetector when supported, phone/card-link fallback, stamp confirmation, reward redemption, persistent D1 records, overview and activity log.
+A merchant loyalty workspace built with Next.js, Supabase Auth, and Supabase
+PostgreSQL, deployed on Vercel.
+
+Business owners can sign up, confirm their email, sign in, recover passwords,
+configure a program, enroll customers, scan QR cards, award stamps, and redeem
+rewards. PostgreSQL policies isolate each business. Stamp changes and activity
+events are transactional and protected against retries with the same request ID.
+
+See SETUP.md for Supabase SQL, environment variables, email configuration,
+Vercel deployment, validation, and migrating existing D1 data.
+
+## Local development
+
+Copy .env.example to .env.local and configure your Supabase project first.
+
+```sh
+npm ci
+npm run dev
+```
+
+npm run build creates the production Next.js build.
+npm run start serves it. npm test runs local PostgreSQL and redirect tests.
 
 ## Current boundaries
-Private owner access through Sites / ChatGPT identity. Enrollment QR and customer card links currently open the owner's workspace. No public customer portal, staff invitations, billing, Apple or Google Wallet signing, messaging, or production marketing consent service. Camera QR decoding requires browser BarcodeDetector support (fallback lookup is available).
 
-Each signed-in owner has an isolated program. All data operations verify identity server-side; owner filtering applies to reads and writes. Customers cannot self-award a stamp. Goal changes are locked once customers exist. Records start empty; no fabricated analytics.
-
-Before commercial release: add scoped staff memberships, public enrollment with verification and abuse controls, customer-owned access, atomic idempotent event processing, billing, wallet credentials and pass update service, consent records, retention/export/delete policies, and platform-specific scanner testing.
-
-## Run
-Install dependencies, run npm run db:generate after schema edits, and build through Sites. Apply generated migrations locally before preview. Production migrations are applied by Sites during publication.
+Accounts are for business owners. Customer card and enrollment links require
+owner access. Public enrollment, customer accounts, staff invitations, billing,
+wallet passes, and messaging are not implemented. Camera QR decoding depends
+on browser BarcodeDetector support; phone/card-link lookup is available.
