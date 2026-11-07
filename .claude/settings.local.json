@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm ci *)",
+      "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
+      "PowerShell($path='D:\\\\Techwake360\\\\Stamply_Full_Project_Source\\\\stamply\\\\node_modules\\\\@next\\\\.swc-win32-x64-msvc-EiHZZxWn'; if\\(Test-Path $path\\){ try{ Remove-Item -Recurse -Force $path -ErrorAction Stop; \"deleted\" } catch { \"locked: $_\" } } else { \"absent\" })",
+      "PowerShell($p='D:\\\\Techwake360\\\\Stamply_Full_Project_Source\\\\stamply\\\\node_modules\\\\@next\\\\.swc-win32-x64-msvc-EiHZZxWn'; Get-ChildItem $p -Recurse -Force | ForEach-Object { try { $_.Attributes = 'Normal' } catch {} }; try { Remove-Item -Recurse -Force $p -ErrorAction Stop; \"deleted\" } catch { \"still locked: $\\($_.Exception.Message\\)\" })",
+      "PowerShell($f='D:\\\\Techwake360\\\\Stamply_Full_Project_Source\\\\stamply\\\\node_modules\\\\@next\\\\.swc-win32-x64-msvc-EiHZZxWn\\\\next-swc.win32-x64-msvc.node'; \\(Get-Item $f -Force\\).Attributes; \"---ACL---\"; \\(Get-Acl $f\\).AccessToString)"
+    ]
+  }
+}
