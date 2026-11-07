@@ -28,5 +28,29 @@
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes popIn{from{opacity:0;transform:scale(.7) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
 @media(max-width:800px){.celebrate-text h1{font-size:38px}.celebrate-text p{font-size:16px}}
+.bell-button{position:relative}
+.bell-badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:9px;background:#d94e2d;color:#fff;font-size:9px;font-weight:650;padding:0 4px;display:grid;place-items:center;line-height:1}
+.notif-backdrop{position:fixed;inset:0;background:#102a1f55;backdrop-filter:blur(3px);z-index:15;display:flex;justify-content:flex-end;animation:fadeIn .2s}
+.notif-panel{width:380px;max-width:100%;background:#fcfdf9;height:100%;padding:28px 24px;display:flex;flex-direction:column;box-shadow:-8px 0 36px #12291a20;animation:slideIn .22s ease-out;overflow:auto}
+.notif-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:18px}
+.notif-head h2{font-size:22px;letter-spacing:-.4px;margin-top:4px}
+.notif-list{display:flex;flex-direction:column;gap:2px}
+.notif-row{width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:14px 10px;border-radius:10px;font-size:11px;color:#223d34}
+.notif-row:hover{background:#f3f6ec}
+.notif-icon{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex-shrink:0}
+.notif-icon.ready{background:#eff7df;color:#4b7331}
+.notif-icon.redeem{background:#e4efe3;color:#2d6448}
+.notif-body{flex:1;min-width:0}
+.notif-body b{font-size:12px;font-weight:600;color:#1f3b2e;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.notif-body small{font-size:10px;margin-top:4px;color:#8e9888}
+.notif-time{font-size:9px;color:#aab2a2;white-space:nowrap}
+.notif-foot{margin-top:auto;padding-top:18px;border-top:1px solid #eceee5;display:flex;align-items:flex-start;gap:9px;font-size:10px;color:#8b957f;line-height:1.55}
+.notif-foot svg{flex-shrink:0;margin-top:2px;color:#9aa38c}
+.notif-card{display:flex;align-items:center;gap:14px;background:#f3f7e9;border:1px solid #e1e8d4;border-radius:11px;padding:14px 16px;margin:18px 0 6px}
+.notif-card b{display:flex;align-items:center;gap:7px;font-size:12px;color:#2a4d3b;font-weight:600}
+.notif-card small{display:block;margin-top:5px;font-size:10px;color:#788c7a;line-height:1.5}
+.notif-pill{margin-left:auto;background:#244f3e;color:#f3f7e9;font-size:9px;letter-spacing:.8px;padding:5px 9px;border-radius:5px;font-weight:600}
+@keyframes slideIn{from{transform:translateX(30px);opacity:0}to{transform:translateX(0);opacity:1}}
+@media(max-width:800px){.notif-panel{width:100%;padding:22px 18px}}
 .profile span{min-width:0;overflow-wrap:anywhere}
 @media(max-width:600px){.auth-card{padding:28px 22px}.auth-card h1{font-size:28px}}

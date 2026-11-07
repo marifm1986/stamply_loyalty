@@ -2,6 +2,7 @@
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
+import { sendSms, smsConfigured } from '@/lib/sms';
 
 export const dynamic = 'force-dynamic';
 const text = (max: number) => z.string().trim().min(1).max(max);
@@ -60,5 +61,15 @@ export async function POST(request: NextRequest) {
   const { requestId, ...payload } = parsed.data;
   const { error } = await ctx.supabase.rpc('mutate_workspace', { payload, request_id: requestId });
   if (error) return json({ error: error.code === 'P0001' ? error.message : 'Could not save your change. Please try again.' }, error.code === 'P0001' ? 400 : 503);
+  if (payload.action === 'stamp' && smsConfigured()) {
+    const [shop, member] = await Promise.all([
+      ctx.supabase.from('shops').select('name,reward,goal').eq('owner', ctx.user.id).maybeSingle(),
+      ctx.supabase.from('members').select('phone,stamps,name').eq('owner', ctx.user.id).eq('id', payload.id).maybeSingle(),
+    ]);
+    if (shop.data && member.data && member.data.stamps >= shop.data.goal) {
+      const body = `${shop.data.name}: your reward is ready! ${shop.data.reward}. Thanks, ${member.data.name}.`;
+      void sendSms(member.data.phone, body);
+    }
+  }
   return workspace(ctx.supabase, ctx.user.id);
 }
