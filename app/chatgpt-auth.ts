@@ -19,6 +19,9 @@ const SIGN_OUT_PATH = "/signout-with-chatgpt";
 const CALLBACK_PATH = "/callback";
 
 export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
+  // Sites validates these headers at its gateway; Vercel does not.
+  // Do not accept caller-supplied identities on a Vercel deployment.
+  if (process.env.VERCEL === "1") return null;
   const requestHeaders = await headers();
   const userId = requestHeaders.get(USER_ID_HEADER);
   const email = requestHeaders.get(USER_EMAIL_HEADER);

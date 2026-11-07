@@ -30,6 +30,20 @@ Hosted Sites supplies validated `oai-authenticated-user-id` and `oai-authenticat
 ## Deployment
 .openai/hosting.json identifies the existing private Site and declares its DB binding. It is metadata, not a secret. Preserve its identity for updates to that Site; register a new Site and replace the project ID for an independent deployment. Outside Sites, provision D1, apply the SQL migration, configure the DB binding, and supply trusted authentication. The hosting platform does not transfer with this ZIP.
 
+## Vercel deployment
+
+`vercel.json` selects the Next.js preset, runs `npm run build:vercel`, and
+uses `.next` output. The default `npm run build` remains the Cloudflare/vinext
+build for Sites and Wrangler. Do not set Vercel's output directory to `dist`.
+
+This resolves the missing `.next/routes-manifest.json` build error. Vercel can
+serve the UI, but it does not provide the Sites identity gateway or the D1 `DB`
+binding. The Next.js build replaces `cloudflare:workers` with an environment
+without a database. Authentication fails closed on Vercel, so data endpoints
+return 401 until a trusted authentication integration is implemented. A
+Vercel-compatible database integration is also required for data operations.
+The existing database and authentication continue to work on Sites.
+
 ## Main files
 - app/page.tsx: dashboard, program setup, customer list, QR scan and card dialogs
 - app/globals.css: responsive design
